@@ -240,12 +240,23 @@ uint8_t mcp2515_get_message(tCAN *message)
 	spi_putc(addr);
 	
 	// read id
-	message->id  = (uint16_t) spi_putc(0xff) << 3;
-	message->id |=            spi_putc(0xff) >> 5;
-	
-	spi_putc(0xff);
-	spi_putc(0xff);
-	
+	uint32_t i1 = (uint32_t) spi_putc(0xff),
+	         i2 = (uint32_t) spi_putc(0xff),
+			 i3 = (uint32_t) spi_putc(0xff),
+			 i4 = (uint32_t) spi_putc(0xff);
+
+	// 0b1000 = 0 => 11bit id, 1 => 29bit id 
+	if (i2 & 0b1000 == 0) {
+		message->id = i1 << 3 | i2 >> 5;
+		message->extended=false;
+	} else {
+		message->id = (i1 << 21) |
+						( ( (i2 >> 5) & 0b111) << 18) | ( (i2 & 0b11) << 16) |
+						(i3 << 8) |
+						i4;
+		message->extended=true;
+	}
+
 	// read DLC
 	uint8_t length = spi_putc(0xff) & 0x0f;
 	
@@ -300,13 +311,29 @@ uint8_t mcp2515_send_message(tCAN *message)
 	
 	RESET(MCP2515_CS);
 	spi_putc(SPI_WRITE_TX | address);
-	
-	spi_putc(message->id >> 3);
-    spi_putc(message->id << 5);
-	
-	spi_putc(0);
-	spi_putc(0);
-	
+			
+	if (!message->extended) {
+		spi_putc(message->id >> 3);
+		spi_putc(message->id << 5);
+		spi_putc(0);
+		spi_putc(0);
+	} else {
+		char const SRR_IDE = 0b00001000;
+		uint8_t i1 = (message->id >> 21) & 0xff,
+				i2 = ( 
+					 ( ( (message->id >> 18) & 0b111) << 5) | 
+					   ( (message->id >> 16) & 0b11) |
+						SRR_IDE
+					 ) & 0xff,
+				i3 = (message->id >> 8) & 0xff,
+				i4 = message->id & 0xff;
+
+		spi_putc(i1);
+		spi_putc(i2);
+		spi_putc(i3);
+		spi_putc(i4);
+	}
+
 	uint8_t length = message->header.length & 0x0f;
 	
 	if (message->header.rtr) {
