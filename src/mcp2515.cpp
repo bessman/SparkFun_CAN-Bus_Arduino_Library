@@ -246,7 +246,7 @@ uint8_t mcp2515_get_message(tCAN *message)
 			 i4 = (uint32_t) spi_putc(0xff);
 
 	// 0b1000 = 0 => 11bit id, 1 => 29bit id 
-	if (i2 & 0b1000 == 0) {
+	if ( (i2 & 0b1000) == 0) {
 		message->id = i1 << 3 | i2 >> 5;
 		message->extended=false;
 	} else {
