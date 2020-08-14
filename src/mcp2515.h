@@ -37,13 +37,13 @@
 
 extern "C"
 {
-	
+
 
 #endif
 // ----------------------------------------------------------------------------
-struct tCAN 
+struct tCAN
 {
-	tCAN(): id(0), header({0,8}),data({0,0,0,0,0,0,0,0}),extended(false) {}
+	tCAN(): id(0), header{0,8},data{0,0,0,0,0,0,0,0},extended(false) {}
 	uint32_t id;
 	struct {
 		int8_t rtr : 1;
